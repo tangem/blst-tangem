@@ -352,7 +352,7 @@ import java.nio.file.*;
     static {
         Class<?> imClazz = $imclassname.class;
         InputStream res = imClazz.getResourceAsStream(
-                        System.getProperty(imClazz.getPackageName() + ".jniResource", resName));
+                        System.getProperty(imClazz.getPackage().getName() + ".jniResource", resName));
         if (res == null) {
             try {
                 System.loadLibrary("$module");
@@ -377,9 +377,9 @@ import java.nio.file.*;
             }
         }
     }
-    public static void main(String argv[]) {
-        System.out.println(resName);
-    }
+//    public static void main(String argv[]) {
+//        System.out.println(resName);
+//    }
 %}
 
 #ifdef __cplusplus
