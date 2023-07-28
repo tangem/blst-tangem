@@ -349,6 +349,8 @@ import java.nio.file.*;
     final static String resName = System.getProperty("os.name").replaceFirst(" .*","")
                                 + "/" + System.getProperty("os.arch")
                                 + "/" + libName;
+    final static int DEFAULT_BUFFER_SIZE = 8192;
+
     static {
         Class<?> imClazz = $imclassname.class;
         InputStream res = imClazz.getResourceAsStream(
@@ -365,21 +367,39 @@ import java.nio.file.*;
         } else {
             // unpack shared library into a temporary directory and load it
             try {
-                Path tmpdir = Files.createTempDirectory("$module@");
-                tmpdir.toFile().deleteOnExit();
-                Path tmpdll = Paths.get(tmpdir.toString(), libName);
-                tmpdll.toFile().deleteOnExit();
-                Files.copy(res, tmpdll, StandardCopyOption.REPLACE_EXISTING);
-                res.close();
-                System.load(tmpdll.toString());
+                String dirPrefix = "$module@";
+                // unpack shared library into a temporary directory and load it
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    Path tmpdir = Files.createTempDirectory(dirPrefix);
+                    tmpdir.toFile().deleteOnExit();
+                    Path tmpdll = Paths.get(tmpdir.toString(), libName);
+                    tmpdll.toFile().deleteOnExit();
+                    Files.copy(res, tmpdll, StandardCopyOption.REPLACE_EXISTING);
+                    res.close();
+                    System.load(tmpdll.toString());
+                } else {
+                    File fileTmp = File.createTempFile(dirPrefix + "/" + libName, null);
+                    fileTmp.deleteOnExit();
+                    try (FileOutputStream outputStream = new FileOutputStream(fileTmp, false)) {
+                        int read;
+                        byte[] bytes = new byte[DEFAULT_BUFFER_SIZE];
+                        while ((read = res.read(bytes)) != -1) {
+                            outputStream.write(bytes, 0, read);
+                        }
+                        System.load(fileTmp.getPath());
+                    }
+                }
             } catch (IOException e) {
                 throw new RuntimeException(e.getMessage());
+            } finally {
+                try {
+                    res.close();
+                } catch (IOException e) {
+
+                }
             }
         }
     }
-//    public static void main(String argv[]) {
-//        System.out.println(resName);
-//    }
 %}
 
 #ifdef __cplusplus
